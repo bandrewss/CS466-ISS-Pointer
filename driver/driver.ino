@@ -98,7 +98,7 @@ int getMyLatLong()
         // send HTTP GET request
         client.println("GET /json HTTP/1.1");
         client.println("Host: ipinfo.io");
-        client.println("User-Agent: arduino-ethernet");
+        //client.println("User-Agent: arduino-ethernet");
         client.println("Connection: close");
         client.println();
 #ifdef ETHERNET_VERBOSE
@@ -166,7 +166,7 @@ int getMyLatLong()
 }
 
 
-// puts the current lat and long of the ISS in *co
+// gets the current lat and long of the ISS
 int getIssLatLong()
 {
     // disconnect if still connected
@@ -181,8 +181,8 @@ int getIssLatLong()
         // send HTTP GET request
         client.println("GET http://api.open-notify.org/iss-now.json");
         client.println("Host: api.open-notify.org");
-        client.println("arduino-ethernet");
-        client.println("Connection: keep-alive");
+        //client.println("arduino-ethernet");
+        client.println("Connection: close");
         client.println();
 
 #ifdef ETHERNET_VERBOSE
