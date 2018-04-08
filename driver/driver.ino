@@ -5,6 +5,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <ArduinoJson.h> // https://arduinojson.org/
+#include <math.h>
 
 // #define ETHERNET_VERBOSE
 
@@ -16,13 +17,20 @@ byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
 EthernetClient client;
 
+#define ISS_ALT (390)
+#define EARTH_CENTER (6370)
+
+#define TO_RADIAN(A) (PI * A / 180)
+#define TO_DEGREE(R) (R * (180/PI))
+
+
 struct Coordinates
 {
     float lat;
     float lon;
 };
 
-Coordinates iss_coords, my_coords;
+Coordinates iss_coords, iss_coords_rad, my_coords, my_coords_rad;
 
 void setup() 
 {
@@ -31,7 +39,7 @@ void setup()
         ;
 
     initializeEthernet();
-    
+
     getMyLatLong();
 
     Serial.println(my_coords.lat);
@@ -39,6 +47,7 @@ void setup()
     Serial.println();
 }
 
+float bearing;
 void loop() 
 {
     getIssLatLong();
@@ -48,11 +57,18 @@ void loop()
 
     Serial.print("Longitude: ");
     Serial.println(iss_coords.lon, 2.4);
-    Serial.println();
 
-    delay(1000);
+    bearing = getISSBearing();
+    
+    Serial.print("Bearing: ");
+    Serial.println(bearing);
+    
+    Serial.println();
+    delay(10000);
 }
 
+
+// startup the Ethernet sheild 
 int initializeEthernet()
 {
 #ifdef ETHERNET_VERBOSE
@@ -84,6 +100,7 @@ int initializeEthernet()
 
 
 // get the current location of the Arduino based on its public IP
+// fills 'my_coords' and 'my_coords_rad'
 int getMyLatLong()
 {
     // disconnect if connected to something
@@ -161,12 +178,16 @@ int getMyLatLong()
     my_coords.lon = root["loc"].as<float>();
 
     client.stop();
+
+    my_coords_rad.lat = TO_RADIAN(my_coords.lat);
+    my_coords_rad.lon = TO_RADIAN(my_coords.lon);
     
     return 0;
 }
 
 
 // gets the current lat and long of the ISS
+// fills 'iss_coords' and 'iss_coords_rad'
 int getIssLatLong()
 {
     // disconnect if still connected
@@ -224,5 +245,42 @@ int getIssLatLong()
 
     client.stop();
 
+    iss_coords_rad.lat = TO_RADIAN(iss_coords.lat);
+    iss_coords_rad.lon = TO_RADIAN(iss_coords.lon);
+
     return 0;
 }
+
+
+// calculate and return the bearing from us to the ISS
+float getISSBearing()
+{
+    // thanks to 'deya tri' for direction algorithm
+    // https://stackoverflow.com/a/45929654
+
+    float d_lat = log(tan((iss_coords_rad.lat /2.0) + (PI/4.0)) / tan((my_coords_rad.lat /2.0) + (PI/4.0)));
+    float d_lon = abs(my_coords_rad.lon - iss_coords_rad.lon);
+
+    float theta = atan2(d_lon, d_lat);
+
+    return TO_DEGREE(theta);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
