@@ -23,6 +23,10 @@ EthernetClient client;
 #define TO_RADIAN(A) (PI * A / 180)
 #define TO_DEGREE(R) (R * (180/PI))
 
+#define MAX_STEP 370
+#define DEGREES_TO_STEP(D) (D * 1.02777)
+int current_step = 0;
+
 
 struct Coordinates
 {
@@ -59,6 +63,8 @@ void loop()
     Serial.println(iss_coords.lon, 2.4);
 
     bearing = getISSBearing();
+
+    stepToBearing(bearing);
     
     Serial.print("Bearing: ");
     Serial.println(bearing);
@@ -267,7 +273,37 @@ float getISSBearing()
 }
 
 
+//
+void stepToBearing(float bearing)
+{
+    // which step should we be on
+    int target_step = DEGREES_TO_STEP(bearing);
 
+    Serial.print("target_step: ");
+    Serial.println(target_step);
+
+    int distance_r, distance_l;
+
+    // these formulas can probably be reduced
+    if(target_step == current_step)
+    {
+        // no need to move
+        return;
+    }
+    else if(target_step < current_step)
+    {
+        distance_r = (MAX_STEP - current_step) + target_step;
+        distance_l = current_step - target_step;
+    }
+    else
+    {
+        distance_r = target_step - current_step;
+        distance_l = current_step + (MAX_STEP - target_step);
+    }
+
+    // call step function in correct direction
+    
+}
 
 
 
