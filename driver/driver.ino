@@ -24,7 +24,9 @@ EthernetClient client;
 #define TO_DEGREE(R) ((R) * (180/PI))
 #define TAU (2 * PI)
 
-#define MAX_STEP 370
+#define STEP_PIN (3)
+#define DIR_PIN (4)
+#define MAX_STEP (370)
 #define DEGREES_TO_STEP(D) (D * 1.02777)
 int current_step = 0;
 
@@ -102,7 +104,9 @@ int initializeEthernet()
 #endif
 
     Serial.print(Ethernet.localIP());
-    Serial.println();   
+    Serial.println();
+
+   return 0;
 }
 
 
@@ -267,12 +271,7 @@ float getISSBearing()
 
     float d_lat = log(tan((iss_coords_rad.lat /2.0) + (PI/4.0)) / tan((my_coords_rad.lat /2.0) + (PI/4.0)));
     float d_lon = fabs(my_coords_rad.lon - iss_coords_rad.lon);
-
-    if(d_lon > PI)
-    {
-        d_lon = fmod(d_lon, PI);
-    }
-
+    
     if(d_lon > TAU)
         d_lon = fmod(d_lon, TAU);
 
@@ -282,7 +281,7 @@ float getISSBearing()
     float theta = atan2(d_lon, d_lat);
     float theta_d = TO_DEGREE(theta);
     
-    if(my_coords.lon + 180 < iss_coords.lon)
+    if(fabs(my_coords.lon + 180) < fabs(iss_coords.lon))
         theta_d = 360 - theta_d;
 
     return theta_d;
