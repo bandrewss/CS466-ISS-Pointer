@@ -20,8 +20,9 @@ EthernetClient client;
 #define ISS_ALT (390)
 #define EARTH_CENTER (6370)
 
-#define TO_RADIAN(A) (PI * A / 180)
-#define TO_DEGREE(R) (R * (180/PI))
+#define TO_RADIAN(A) (PI * (A) / 180)
+#define TO_DEGREE(R) ((R) * (180/PI))
+#define TAU (2 * PI)
 
 #define MAX_STEP 370
 #define DEGREES_TO_STEP(D) (D * 1.02777)
@@ -265,11 +266,26 @@ float getISSBearing()
     // https://stackoverflow.com/a/45929654
 
     float d_lat = log(tan((iss_coords_rad.lat /2.0) + (PI/4.0)) / tan((my_coords_rad.lat /2.0) + (PI/4.0)));
-    float d_lon = abs(my_coords_rad.lon - iss_coords_rad.lon);
+    float d_lon = fabs(my_coords_rad.lon - iss_coords_rad.lon);
+
+    if(d_lon > PI)
+    {
+        d_lon = fmod(d_lon, PI);
+    }
+
+    if(d_lon > TAU)
+        d_lon = fmod(d_lon, TAU);
+
+    Serial.print("d_lon: ");
+    Serial.println(d_lon);
 
     float theta = atan2(d_lon, d_lat);
+    float theta_d = TO_DEGREE(theta);
+    
+    if(my_coords.lon + 180 < iss_coords.lon)
+        theta_d = 360 - theta_d;
 
-    return TO_DEGREE(theta);
+    return theta_d;
 }
 
 
