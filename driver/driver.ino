@@ -5,6 +5,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <ArduinoJson.h> // https://arduinojson.org/
+#include <Servo.h>
 #include <math.h>
 
 // #define ETHERNET_VERBOSE
@@ -17,6 +18,9 @@ byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
 EthernetClient client;
 
+Servo servo;
+#define SERVO_PIN 6
+
 #define ISS_ALT (390)
 #define EARTH_CENTER (6370)
 
@@ -24,6 +28,7 @@ EthernetClient client;
 #define TO_DEGREE(R) ((R) * (180/PI))
 #define TAU (2 * PI)
 
+#define STEP_DELAY (1000)
 #define STEP_PIN (3)
 #define DIR_PIN (4)
 #define MAX_STEP (370)
@@ -44,6 +49,12 @@ void setup()
     Serial.begin(9600);
     while(!Serial)
         ;
+
+    pinMode(STEP_PIN, OUTPUT);
+    pinMode(DIR_PIN, OUTPUT);
+
+    pinMode(SERVO_PIN, OUTPUT);
+    servo.attach(SERVO_PIN);
 
     initializeEthernet();
 
@@ -71,9 +82,12 @@ void loop()
     
     Serial.print("Bearing: ");
     Serial.println(bearing);
+
+    adjustServo();
     
     Serial.println();
-    delay(10000);
+    //delay(10000);
+    delay(1500);
 }
 
 
@@ -275,12 +289,9 @@ float getISSBearing()
     if(d_lon > TAU)
         d_lon = fmod(d_lon, TAU);
 
-    Serial.print("d_lon: ");
-    Serial.println(d_lon);
-
     float theta = atan2(d_lon, d_lat);
     float theta_d = TO_DEGREE(theta);
-    
+
     if(fabs(my_coords.lon + 180) < fabs(iss_coords.lon))
         theta_d = 360 - theta_d;
 
@@ -296,6 +307,9 @@ void stepToBearing(float bearing)
 
     Serial.print("target_step: ");
     Serial.println(target_step);
+
+    Serial.print("current_step: ");
+    Serial.println(current_step);
 
     int distance_r, distance_l;
 
@@ -317,14 +331,77 @@ void stepToBearing(float bearing)
     }
 
     // call step function in correct direction
+    int dir = distance_l < distance_r;
+    stepMotor(dir ? distance_l : distance_r, dir);
     
 }
 
 
+//
+void stepMotor(int steps, int dir)
+{
+    Serial.print("stepping: ");
+    if(dir)
+        Serial.print("left ");
+    else
+        Serial.print("right ");
+    
+    Serial.print(" ");
+    Serial.println(steps);
+    
+    digitalWrite(DIR_PIN, dir);
+
+    for(int i = 0; i < steps; ++i)
+    {
+        digitalWrite(STEP_PIN, HIGH); 
+        delayMicroseconds(STEP_DELAY); 
+        digitalWrite(STEP_PIN, LOW); 
+        delayMicroseconds(STEP_DELAY);
+    }
+
+    current_step += (dir ? -steps : steps);
+
+    if(current_step < 0)
+        current_step = current_step + MAX_STEP;
+    
+    current_step %= MAX_STEP;
+}
 
 
+//
+void adjustServo()
+{
+
+    // find the angle created in the center of the earth
+    float angle_b;
+
+    if(my_coords.lon > iss_coords.lon)
+        angle_b = fabs(my_coords.lon) + fabs(iss_coords.lon);
+    else
+        angle_b = fabs(iss_coords.lon) - fabs(my_coords.lon);
 
 
+    // find the length of the last remaining side using the law of cosines
+    const float side_a2 = (long)EARTH_CENTER * (long)EARTH_CENTER;
+    const float side_c2 = (long)ISS_ALT * (long)ISS_ALT;
+
+    float side_b = sqrt( side_a2 + side_c2 - (2 * (long)EARTH_CENTER * (long)ISS_ALT * cos(TO_RADIAN(angle_b))));
+
+    Serial.print("side_b: ");
+    Serial.println(side_b);
+
+    // find the target angle using the law of sines
+    float angle_c = asin(sin(TO_RADIAN(angle_b)) * EARTH_CENTER / side_b);
+
+    Serial.print("angle_c: ");
+    Serial.println(TO_DEGREE(angle_c));
+
+    servo.write( abs((int) TO_DEGREE(angle_c)));
+
+    //analogWrite(SERVO_PIN, map(abs(TO_DEGREE(angle_c)), 0, 180, 0, 255));
+
+   
+}
 
 
 
