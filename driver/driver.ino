@@ -300,17 +300,17 @@ float getISSBearing()
 }
 
 
-//
+// calculate how to step to the given bearing, then step there
 void stepToBearing(float bearing)
 {
     // which step should we be on
     int target_step = DEGREES_TO_STEP(bearing);
 
-    Serial.print("target_step: ");
-    Serial.println(target_step);
-
     Serial.print("current_step: ");
     Serial.println(current_step);
+
+    Serial.print("target_step: ");
+    Serial.println(target_step);
 
     int distance_r, distance_l;
 
@@ -338,7 +338,7 @@ void stepToBearing(float bearing)
 }
 
 
-//
+// step the motor
 void stepMotor(int steps, int dir)
 {
     Serial.print("stepping: ");
