@@ -19,10 +19,11 @@ byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 EthernetClient client;
 
 Servo servo;
-#define SERVO_PIN 6
+#define SERVO_PIN 9
 
 #define ISS_ALT (390)
 #define EARTH_CENTER (6370)
+#define ISS_HEIGHT (EARTH_CENTER + ISS_ALT) //6760
 
 #define TO_RADIAN(A) (PI * (A) / 180)
 #define TO_DEGREE(R) ((R) * (180/PI))
@@ -368,39 +369,45 @@ void stepMotor(int steps, int dir)
 }
 
 
-//
+// adjust the angle of the servo based on the current location of the ISS
 void adjustServo()
 {
-
     // find the angle created in the center of the earth
-    float angle_b;
+    float center_angle;
 
-    if(my_coords.lon > iss_coords.lon)
-        angle_b = fabs(my_coords.lon) + fabs(iss_coords.lon);
+    if( (my_coords.lat < 0 && iss_coords.lat > 0)
+    ||  (my_coords.lat > 0 && iss_coords.lat < 0) )
+    {
+        center_angle = fabs(my_coords.lat) + fabs(iss_coords.lat);
+    }
     else
-        angle_b = fabs(iss_coords.lon) - fabs(my_coords.lon);
+    {
+        if(fabs(my_coords.lat) > fabs(iss_coords.lat))
+            center_angle = fabs(my_coords.lat) - fabs(iss_coords.lat);
+        else
+            center_angle = fabs(iss_coords.lat) - fabs(my_coords.lat);
+    }
 
+    float center_angle_rad = TO_RADIAN(center_angle);
 
-    // find the length of the last remaining side using the law of cosines
-    const float side_a2 = (long)EARTH_CENTER * (long)EARTH_CENTER;
-    const float side_c2 = (long)ISS_ALT * (long)ISS_ALT;
+    // find the length between us and the ISS using the law of cosines
+    const float  ab2 = (long)EARTH_CENTER * (long)EARTH_CENTER + (long)ISS_HEIGHT * (long)ISS_HEIGHT;
 
-    float side_b = sqrt( side_a2 + side_c2 - (2 * (long)EARTH_CENTER * (long)ISS_ALT * cos(TO_RADIAN(angle_b))));
+    float len_me_to_iss = sqrt( ab2 - (2 * (long)EARTH_CENTER * (long)ISS_HEIGHT * cos(center_angle_rad)));
 
-    Serial.print("side_b: ");
-    Serial.println(side_b);
+    Serial.print("len_me_to_iss: ");
+    Serial.println(len_me_to_iss);
 
-    // find the target angle using the law of sines
-    float angle_c = asin(sin(TO_RADIAN(angle_b)) * EARTH_CENTER / side_b);
+    // find angle bewteen us and the ISS using the law of sines
+    float servo_angle_rad = asin( ISS_HEIGHT * (sin(center_angle_rad) / len_me_to_iss) );
+    float servo_angle = TO_DEGREE(servo_angle);
 
     Serial.print("angle_c: ");
-    Serial.println(TO_DEGREE(angle_c));
+    Serial.print(servo_angle);
+    
 
-    servo.write( abs((int) TO_DEGREE(angle_c)));
-
+    servo.write(TO_DEGREE(servo_angle));
     //analogWrite(SERVO_PIN, map(abs(TO_DEGREE(angle_c)), 0, 180, 0, 255));
-
-   
 }
 
 
