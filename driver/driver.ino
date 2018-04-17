@@ -30,8 +30,10 @@ Servo servo;
 #define TAU (2 * PI)
 
 #define STEP_DELAY (1000)
-#define STEP_PIN (3)
+#define STEP_PIN (2)
 #define DIR_PIN (4)
+#define ENABLE_PIN (5)
+#define RESET_PIN (6)
 #define MAX_STEP (370)
 #define DEGREES_TO_STEP(D) (D * 1.02777)
 int current_step = 0;
@@ -53,6 +55,11 @@ void setup()
 
     pinMode(STEP_PIN, OUTPUT);
     pinMode(DIR_PIN, OUTPUT);
+    pinMode(ENABLE_PIN, OUTPUT);
+    pinMode(RESET_PIN, OUTPUT);
+
+    digitalWrite(RESET_PIN, HIGH);
+    digitalWrite(ENABLE_PIN, LOW);
 
     pinMode(SERVO_PIN, OUTPUT);
     servo.attach(SERVO_PIN);
@@ -349,8 +356,11 @@ void stepMotor(int steps, int dir)
     
     Serial.print(" ");
     Serial.println(steps);
-    
+
+    digitalWrite(ENABLE_PIN, LOW);
     digitalWrite(DIR_PIN, dir);
+
+    delay(20);
 
     for(int i = 0; i < steps; ++i)
     {
@@ -359,6 +369,10 @@ void stepMotor(int steps, int dir)
         digitalWrite(STEP_PIN, LOW); 
         delayMicroseconds(STEP_DELAY);
     }
+
+    delay(100);
+
+    digitalWrite(ENABLE_PIN, HIGH);
 
     current_step += (dir ? -steps : steps);
 
@@ -388,6 +402,9 @@ void adjustServo()
             center_angle = fabs(iss_coords.lat) - fabs(my_coords.lat);
     }
 
+    Serial.print("center_angle: ");
+    Serial.println(center_angle);
+
     float center_angle_rad = TO_RADIAN(center_angle);
 
     // find the length between us and the ISS using the law of cosines
@@ -398,16 +415,28 @@ void adjustServo()
     Serial.print("len_me_to_iss: ");
     Serial.println(len_me_to_iss);
 
-    // find angle bewteen us and the ISS using the law of sines
-    float servo_angle_rad = asin( ISS_HEIGHT * (sin(center_angle_rad) / len_me_to_iss) );
-    float servo_angle = TO_DEGREE(servo_angle);
+    Serial.print("center_angle_rad: ");
+    Serial.println(center_angle_rad);
 
-    Serial.print("angle_c: ");
-    Serial.print(servo_angle);
+    Serial.print("ISS_HEIGHT: ");
+    Serial.println(ISS_HEIGHT);
+
+    // find angle bewteen us and the ISS using the law of sines
+    float servo_angle_rad = asin( (float)ISS_HEIGHT * (sin(center_angle_rad) / len_me_to_iss) );
+    float servo_angle = TO_DEGREE(servo_angle_rad);
+
+    if(len_me_to_iss < EARTH_CENTER)
+        servo_angle = 180 - servo_angle;
+
+    Serial.print("servo_angle: ");
+    Serial.println(servo_angle);
     
 
-    servo.write(TO_DEGREE(servo_angle));
-    //analogWrite(SERVO_PIN, map(abs(TO_DEGREE(angle_c)), 0, 180, 0, 255));
+    servo.write(180 - servo_angle);
+    //analogWrite(SERVO_PIN, 255 - map((int)servo_angle, 0, 180, 0, 255));
+
+    Serial.print("map: ");
+    Serial.println(map((int)servo_angle, 0, 180, 0, 255));
 }
 
 
